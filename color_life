@@ -127,14 +127,15 @@ main() {
 				local yd=$(( (y + 1) % stride ))
 				local xb=$(( (x - 1 < 0) ? (x - 1 + lines) % lines : (x - 1) ))
 				local xf=$(( (x + 1) % lines ))
+
 				local u=$(( (yu * stride) + x ))
 				local ub=$(( (yu * stride) + xb ))
 				local uf=$(( (yu * stride) + xf ))
 				local d=$(( (yd * stride) + x ))
 				local db=$(( (yd * stride) + xb ))
 				local df=$(( (yd * stride) + xf ))
-				local f=$(( xf ))
-				local b=$(( xb ))
+				local f=$(( (y * stride) + xf ))
+				local b=$(( (y * stride) + xb ))
 
 				screen_buffer[(y * columns) + x]="${COLORS[$color]}#${RESET}"
 				echo "size: $((columns * lines))" >/dev/ttys009
