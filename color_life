@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+
+#set -e
+
+declare -A COLORS
+COLORS[CYAN]="\033[1;96m"
+COLORS[RED]="\033[0;91m"
+COLORS[GREEN]="\033[0;92m"
+RESET='\033[0m'
+
+swap() {
+    local -n array_swap=$1
+    local first=$2
+    local second=$3
+    local tmp="${array_swap[first]}"
+    array_swap[first]="${array_swap[second]}"
+    array_swap[second]="$tmp"
+}
+
+reverse() {
+    local -n array_reverse=$1
+    local array_reverse_len=${#array_reverse[@]}
+    local first=${2:-0}
+    local last=${3:-$array_reverse_len}
+
+    while ((first < --last)); do
+       swap array_reverse $first $last
+       ((++first))
+    done
+}
+
+rotate() {
+    local -n array_rotate=$1
+    local array_rotate_len="${#array_rotate[@]}"
+    local first=${2:-0}
+    local middle=${3:-0}
+    local last=${4:-0}
+    if [[ $middle -gt $first && $middle -lt $last ]]; then
+       reverse array_rotate $first $middle
+       reverse array_rotate $middle $last
+       reverse array_rotate $first $last
+    fi
+}
+
+declare -a COLOR=( CYAN RED GREEN )
+next_color() {
+	rotate COLOR 0 1 ${#COLOR[@]}
+	echo "${COLOR[0]}"
+}
+
+cleanup() {
+	rm "$EVENTS"
+	printf '\033[?1000l\033[?1006l'
+	tput cnorm
+	tput rmcup
+	stty sane
+	exit
+}
+
+input_handler() {
+	# Read input stream sequence for mouse events
+	local char mouse_data reset c
+		while IFS= read -r -s -n1 char; do
+			if [[ $char == $'\033' ]]; then
+				#read -rsn5 -t 0.1 rest # grab [? or [
+				#if [[ $rest == "[<" ]]; then
+				#	# Read until the final 'M' (press) or 'm' (release) character
+				#	mouse_data=""
+				#	while read -rsn1 c; do
+				#		[[ $c == "M" || $c == "m" ]] && break
+				#		mouse_data+="$c"
+				#	done
+				#	echo "Event: button/coords -> $mouse_data ($c)" >"$EVENTS"
+				#fi
+				:
+			fi
+		done
+
+
+}
+
+EVENTS="/tmp/color_life_evens.fifo"
+
+trap 'cleanup' INT TERM EXIT
+main() {
+	local lines columns
+	read -r lines columns < <(stty size)
+	declare -a screen_buffer=()
+	declare -a prev_screen_buffer=()
+
+	if  ! [[ -p "$EVENTS" ]]; then
+		mkfifo "$EVENTS"
+	fi
+
+	lines=10
+	columns=10
+
+
+	tput clear
+	tput civis
+	tput smcup
+	#stty -echo -icanon
+
+	# Enable SGR mouse tracking and alternate screen
+	#printf '\033[?1006h\033[?1000h'
+
+	# init board
+	for ((y = 0; y < lines; ++y)); do
+		for ((x = 0; x < columns; ++x)); do
+			local color=GREEN
+			if [[ $(($RANDOM % 8)) == 0 ]]; then
+				screen_buffer[(y * columns) + x]="${COLORS[$color]}#${RESET}"
+			else
+				screen_buffer[(y * columns) + x]=" "
+			fi
+		done
+	done
+
+	local stride=$columns
+
+	while true; do
+		for ((y = 0; y < lines; ++y)); do
+			for ((x = 0; x < columns; ++x)); do
+				local color=${COLOR[$RANDOM % 3]}
+
+				local yu=$(( (y - 1 < 0) ? (y - 1 + stride) % stride : (y - 1) ))
+				local yd=$(( (y + 1) % stride ))
+				local xb=$(( (x - 1 < 0) ? (x - 1 + lines) % lines : (x - 1) ))
+				local xf=$(( (x + 1) % lines ))
+				local u=$(( (yu * stride) + x ))
+				local ub=$(( (yu * stride) + xb ))
+				local uf=$(( (yu * stride) + xf ))
+				local d=$(( (yd * stride) + x ))
+				local db=$(( (yd * stride) + xb ))
+				local df=$(( (yd * stride) + xf ))
+				local f=$(( xf ))
+				local b=$(( xb ))
+
+				screen_buffer[(y * columns) + x]="${COLORS[$color]}#${RESET}"
+				echo "size: $((columns * lines))" >/dev/ttys009
+				echo "ub: $ub" " u: $u" "uf: $uf" >/dev/ttys009
+				echo " b: $b" " m: $((y * columns + x))" "f: $f" >/dev/ttys009
+				echo "db: $db" " d: $d" "df: $df" >/dev/ttys009
+				sleep 0.1
+			done
+		done
+
+		(IFS= ; printf "${screen_buffer[*]}")
+		#next_color 1>/dev/null
+		prev_screen_buffer=( "${screen_buffer[@]}" )
+	done
+
+
+}; main "$@"
