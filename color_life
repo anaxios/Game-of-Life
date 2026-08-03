@@ -1,155 +1,348 @@
-#!/usr/bin/env bash
+#!/usr/bin/env raku
 
-#set -e
+our $ameba='█';
+#our $ameba='@';
 
-declare -A COLORS
-COLORS[CYAN]="\033[1;96m"
-COLORS[RED]="\033[0;91m"
-COLORS[GREEN]="\033[0;92m"
-RESET='\033[0m'
+#declare -A COLORS
+##COLORS[CYAN]="\033[1;96m"
+##COLORS[RED]="\033[0;91m"
+##COLORS[GREEN]="\033[0;92m"
+#COLORS[RED]="\033[38;2;255;0;0m"
+#COLORS[ORANGE]="\033[38;2;255;127;0m"
+#COLORS[YELLOW]="\033[38;2;255;255;0m"
+#COLORS[GREEN]="\033[38;2;0;255;0m"
+#COLORS[BLUE]="\033[38;2;0;0;255m"
+#COLORS[VIOLET]="\033[38;2;148;0;211m"
+#RESET='\033[0m'
+#
+#declare rnd_seed="${ date +%s; }"
+#
+#swap() {
+#    local -n array_swap=$1
+#    local first=$2
+#    local second=$3
+#    local tmp="${array_swap[first]}"
+#    array_swap[first]="${array_swap[second]}"
+#    array_swap[second]="$tmp"
+#}
+#
+#reverse() {
+#    local -n array_reverse=$1
+#    local array_reverse_len=${#array_reverse[@]}
+#    local first=${2:-0}
+#    local last=${3:-$array_reverse_len}
+#
+#    while ((first < --last)); do
+#       swap array_reverse $first $last
+#       ((++first))
+#    done
+#}
+#
+#rotate() {
+#    local -n array_rotate=$1
+#    local array_rotate_len="${#array_rotate[@]}"
+#    local first=${2:-0}
+#    local middle=${3:-0}
+#    local last=${4:-0}
+#    if [[ $middle -gt $first && $middle -lt $last ]]; then
+#       reverse array_rotate $first $middle
+#       reverse array_rotate $middle $last
+#       reverse array_rotate $first $last
+#    fi
+#}
+#
+#declare -a COLOR=( RED BLUE ORANGE VIOLET YELLOW GREEN  )
+#next_color() {
+#	rotate COLOR 0 1 ${#COLOR[@]}
+#	echo "${COLOR[0]}"
+#}
+#
+#cleanup() {
+#	rm "$EVENTS"
+#	printf '\033[?1000l\033[?1006l'
+#	tput cnorm
+#	tput rmcup
+#	stty sane
+#	exit
+#}
+#
+#input_handler() {
+#	# Read input stream sequence for mouse events
+#	local char mouse_data reset c
+#		while IFS= read -r -s -n1 char; do
+#			if [[ $char == $'\033' ]]; then
+#				#read -rsn5 -t 0.1 rest # grab [? or [
+#				#if [[ $rest == "[<" ]]; then
+#				#	# Read until the final 'M' (press) or 'm' (release) character
+#				#	mouse_data=""
+#				#	while read -rsn1 c; do
+#				#		[[ $c == "M" || $c == "m" ]] && break
+#				#		mouse_data+="$c"
+#				#	done
+#				#	echo "Event: button/coords -> $mouse_data ($c)" >"$EVENTS"
+#				#fi
+#				:
+#			fi
+#		done
+#
+#
+#}
+#
+#EVENTS="/tmp/color_life_evens.fifo"
+#
+#trap 'handle_resize' SIGWINCH
+#trap 'cleanup' INT TERM EXIT
+#
+#handle_resize() {
+#	read -r L C < <(stty size)
+#	screen_buffer=()
+#	init_board
+#	clear
+#}
 
-swap() {
-    local -n array_swap=$1
-    local first=$2
-    local second=$3
-    local tmp="${array_swap[first]}"
-    array_swap[first]="${array_swap[second]}"
-    array_swap[second]="$tmp"
+
+sub clear() {
+	print "\e[H\e[2J\e[3J";
 }
 
-reverse() {
-    local -n array_reverse=$1
-    local array_reverse_len=${#array_reverse[@]}
-    local first=${2:-0}
-    local last=${3:-$array_reverse_len}
-
-    while ((first < --last)); do
-       swap array_reverse $first $last
-       ((++first))
-    done
+sub hide_cursor() {
+	print "\e[?25l";
 }
 
-rotate() {
-    local -n array_rotate=$1
-    local array_rotate_len="${#array_rotate[@]}"
-    local first=${2:-0}
-    local middle=${3:-0}
-    local last=${4:-0}
-    if [[ $middle -gt $first && $middle -lt $last ]]; then
-       reverse array_rotate $first $middle
-       reverse array_rotate $middle $last
-       reverse array_rotate $first $last
-    fi
+sub show_cursor() {
+	print "\e[?25h";
 }
 
-declare -a COLOR=( CYAN RED GREEN )
-next_color() {
-	rotate COLOR 0 1 ${#COLOR[@]}
-	echo "${COLOR[0]}"
+sub enter_altscreen() {
+	printf "\e[?1049h";
 }
 
-cleanup() {
-	rm "$EVENTS"
-	printf '\033[?1000l\033[?1006l'
-	tput cnorm
-	tput rmcup
-	stty sane
-	exit
+sub leave_altscreen() {
+	printf "\e[?1049l";
 }
 
-input_handler() {
-	# Read input stream sequence for mouse events
-	local char mouse_data reset c
-		while IFS= read -r -s -n1 char; do
-			if [[ $char == $'\033' ]]; then
-				#read -rsn5 -t 0.1 rest # grab [? or [
-				#if [[ $rest == "[<" ]]; then
-				#	# Read until the final 'M' (press) or 'm' (release) character
-				#	mouse_data=""
-				#	while read -rsn1 c; do
-				#		[[ $c == "M" || $c == "m" ]] && break
-				#		mouse_data+="$c"
-				#	done
-				#	echo "Event: button/coords -> $mouse_data ($c)" >"$EVENTS"
-				#fi
-				:
-			fi
-		done
-
+our $rand_seed = 8675309;
+sub rand_next() {
+	my $x = $rand_seed;
+	my $mask = 0xFFFFFFFFFFFFFFFF;
+	$x = ($x +^ ($x +< 21) +& $mask);
+	$x = ($x +^ (($x +> 35) +& 0x1FFFFFFF) +& $mask);
+	$x = ($x +^ ($x +< 4) +& $mask);
+	#$rand_seed = $x +& 0x7FFFFFFFFFFFFFFF;
+	$rand_seed = $x;
+	return $x;
 
 }
 
-EVENTS="/tmp/color_life_evens.fifo"
+sub init_board(@board) {
+	loop (my $y = 0; $y < @board.shape[1]; ++$y) {
+		loop (my $x = 0; $x < @board.shape[0]; ++$x) {
+			#local color=GREEN
+			my $r = rand_next();
+			@board[$x;$y] = (($r +> 32) % 8) == 0 ?? 1 !! 0;
+			#@board[$x;$y] = 1;
+		}
+	}
+	clear();
+}
 
-trap 'cleanup' INT TERM EXIT
-main() {
-	local lines columns
-	read -r lines columns < <(stty size)
-	declare -a screen_buffer=()
-	declare -a prev_screen_buffer=()
+sub draw_board(@last_board, @board) {
+	my $frame = "\e[H";
+	loop (my $y = 0; $y < @board.shape[1]; ++$y) {
+		loop (my $x = 0; $x < @board.shape[0]; ++$x) {
+			if @board[$x;$y] == 1 && @last_board[$x;$y] == 0 -> {
+				$frame ~= "\e[{$y + 1};{$x + 1}H{$ameba}";
+			}
+			if @board[$x;$y] == 0 && @last_board[$x;$y] == 1 -> {
+				$frame ~= "\e[{$y + 1};{$x + 1}H ";
+			}
+		}
+	}
+	$*OUT.write($frame.encode);
+}
 
-	if  ! [[ -p "$EVENTS" ]]; then
-		mkfifo "$EVENTS"
-	fi
+sub life(@last_board, @board) {
+	loop (my $y = 0; $y < @board.shape[1]; ++$y) {
+		loop (my $x = 0; $x < @board.shape[0]; ++$x) {
+			my $colums = @board.shape[0];
+			my $lines = @board.shape[1];
+			my $count = 0;
 
-	lines=10
-	columns=10
+			# check back & front
+			my $back = ($x - 1) % $colums;
+			my $forward = ($x + 1) % $colums;
+			for (@last_board[$back;$y]),
+				(@last_board[$forward;$y]) -> $i {
+				++$count if $i == 1;
+			}
 
+			my $up = ($y - 1) % $lines;
+			my $down = ($y + 1) % $lines;
 
-	tput clear
-	tput civis
-	tput smcup
-	#stty -echo -icanon
+			# check above
+			for (@last_board[$back;$up]),
+				(@last_board[$x;$up]),
+				(@last_board[$forward;$up]) -> $i {
+				++$count if $i == 1;
+			}
 
-	# Enable SGR mouse tracking and alternate screen
-	#printf '\033[?1006h\033[?1000h'
+			# check below
+			for (@last_board[$back;$down]),
+				(@last_board[$x;$down]),
+				(@last_board[$forward;$down]) -> $i {
+				++$count if $i == 1;
+			}
 
-	# init board
-	for ((y = 0; y < lines; ++y)); do
-		for ((x = 0; x < columns; ++x)); do
-			local color=GREEN
-			if [[ $(($RANDOM % 8)) == 0 ]]; then
-				screen_buffer[(y * columns) + x]="${COLORS[$color]}#${RESET}"
-			else
-				screen_buffer[(y * columns) + x]=" "
-			fi
-		done
-	done
+			my $is_alive = @last_board[$x;$y] == 1;
 
-	local stride=$columns
+			if ! $is_alive && $count == 3 -> {
+				@board[$x;$y] = 1;
+			} elsif $is_alive && $count == 2 || $count == 3 -> {
+				@board[$x;$y] = 1;
+			} else {
+				@board[$x;$y] = 0;
+			}
+		}
+	}
+}
 
-	while true; do
-		for ((y = 0; y < lines; ++y)); do
-			for ((x = 0; x < columns; ++x)); do
-				local color=${COLOR[$RANDOM % 3]}
+sub main() {
+	my ($lines, $columns) = words(run('stty', 'size', :out).out.slurp);
+	my @last_board[$columns;$lines];
+	my @board[$columns;$lines];
+	init_board(@last_board);
+	#enter_altscreen();
+	#hide_cursor();
 
-				local yu=$(( (y - 1 < 0) ? (y - 1 + stride) % stride : (y - 1) ))
-				local yd=$(( (y + 1) % stride ))
-				local xb=$(( (x - 1 < 0) ? (x - 1 + lines) % lines : (x - 1) ))
-				local xf=$(( (x + 1) % lines ))
+	loop {
+		life(@last_board, @board);
+		draw_board(@last_board, @board);
 
-				local u=$(( (yu * stride) + x ))
-				local ub=$(( (yu * stride) + xb ))
-				local uf=$(( (yu * stride) + xf ))
-				local d=$(( (yd * stride) + x ))
-				local db=$(( (yd * stride) + xb ))
-				local df=$(( (yd * stride) + xf ))
-				local f=$(( (y * stride) + xf ))
-				local b=$(( (y * stride) + xb ))
+		my @tmp_board := @last_board;
+		@last_board := @board;
+		@board := @tmp_board;
 
-				screen_buffer[(y * columns) + x]="${COLORS[$color]}#${RESET}"
-				echo "size: $((columns * lines))" >/dev/ttys009
-				echo "ub: $ub" " u: $u" "uf: $uf" >/dev/ttys009
-				echo " b: $b" " m: $((y * columns + x))" "f: $f" >/dev/ttys009
-				echo "db: $db" " d: $d" "df: $df" >/dev/ttys009
-				sleep 0.1
-			done
-		done
+	}
 
-		(IFS= ; printf "${screen_buffer[*]}")
-		#next_color 1>/dev/null
-		prev_screen_buffer=( "${screen_buffer[@]}" )
-	done
+	LEAVE {
+		#leave_altscreen();
+		#show_cursor();
+	}
+}
+main();
 
-
-}; main "$@"
+#main() {
+#	read -r L C < <(stty size)
+#	declare -a screen_buffer=()
+#	declare -a prev_screen_buffer=()
+#	local draw_buffer=""
+#	#declare ameba='@'
+#	declare ameba='█'
+#
+#	if  ! [[ -p "$EVENTS" ]]; then
+#		mkfifo "$EVENTS"
+#	fi
+#
+#	tput clear
+#	tput civis
+#	tput smcup
+#	#stty -echo -icanon
+#
+#	# Enable SGR mouse tracking and alternate screen
+#	#printf '\033[?1006h\033[?1000h'
+#
+#	init_board
+#
+#	#local rounds=100
+#	local rounds=${ bc <<<"scale=0; (sqrt($L * $C) * 3)/1"; }
+#	local round=$rounds
+#
+#
+#	while true; do
+#		if ! (( round --> 0 )); then
+#			init_board
+#			round=$rounds
+#
+#		fi
+#
+#		local lines=$L
+#		local columns=$C
+#		local stride=$columns
+#
+#		for ((y = 0; y < lines; ++y)); do
+#			for ((x = 0; x < columns; ++x)); do
+#
+#				local color=GREEN
+#				#local color=${COLOR[$RANDOM % 3]}
+#
+#				local yu=$(( (y - 1 < 0) ? (y - 1 + lines) % lines : (y - 1) ))
+#				local yd=$(( (y + 1) % lines ))
+#				local xb=$(( (x - 1 < 0) ? (x - 1 + stride) % stride: (x - 1) ))
+#				local xf=$(( (x + 1) % stride ))
+#
+#				local u=$(( (yu * stride) + x ))
+#				local ub=$(( (yu * stride) + xb ))
+#				local uf=$(( (yu * stride) + xf ))
+#				local d=$(( (yd * stride) + x ))
+#				local db=$(( (yd * stride) + xb ))
+#				local df=$(( (yd * stride) + xf ))
+#				local f=$(( (y * stride) + xf ))
+#				local b=$(( (y * stride) + xb ))
+#				local m=$(( (y * stride) + x))
+#
+#				local count=0
+#				for i in $u $ub $uf $d $db $df $f $b; do
+#					if [[ "${prev_screen_buffer[i]}" != "0" ]]; then
+#						((++count))
+#					fi
+#				done
+#
+#
+#				# dead
+#				if [[ "${prev_screen_buffer[m]}" == "0" ]]; then
+#					if [[  $count -eq 3 ]]; then
+#						screen_buffer[m]="1"
+#					else
+#						screen_buffer[m]="0"
+#					fi
+#					# alive
+#				else
+#					#if [[ $count -eq 2 || $count -eq 3 || $count -eq 4 ]]; then
+#					if [[ $count -eq 2 || $count -eq 3 ]]; then
+#						screen_buffer[m]="1"
+#					else
+#						screen_buffer[m]="0"
+#					fi
+#				fi
+#			done
+#		done
+#
+#		# (IFS= ; printf "${screen_buffer[*]}")
+#
+#		#local color="${ next_color; }"
+#		local color="ORANGE"
+#		for ((y = 0; y < lines; ++y)); do
+#			for ((x = 0; x < columns; ++x)); do
+#				local i=$((y * columns + 1 + x))
+#				if [[ "${prev_screen_buffer[i]}" == "0" ]] \
+#					&& [[ "${screen_buffer[i]}" != "0" ]]; then
+#					draw_buffer+="\033[$((y + 1));$((x + 1))H${COLORS[$color]}${ameba}${RESET}"
+#				elif [[ "${prev_screen_buffer[i]}" != "0" ]] \
+#					&& [[ "${screen_buffer[i]}" == "0" ]]; then
+#					draw_buffer+="\033[$((y + 1));$((x + 1))H "
+#				fi
+#			done
+#		done
+#		draw_buffer+="\033[$((lines));$((columns))H"
+#		printf "%b" "$draw_buffer"
+#		draw_buffer=""
+#
+#		for ((i = 0; i < (L * C); ++i )); do
+#			prev_screen_buffer[i]="${screen_buffer[i]}"
+#		done
+#
+#	done
+#
+#
+#}; main "$@"
+#
