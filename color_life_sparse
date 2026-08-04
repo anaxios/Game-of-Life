@@ -144,10 +144,11 @@ sub potential_life(%last_board, $columns, $lines) {
 	}
 }
 
-sub main() {
+sub MAIN($seed = 8675309) {
 	my ($lines, $columns) = words(run('stty', 'size', :out).out.slurp);
 	my %last_board;
 	my %board;
+	$rand_seed = $seed;
 	init_board(%last_board, $columns, $lines );
 	#enter_altscreen();
 	#hide_cursor();
@@ -158,8 +159,8 @@ sub main() {
 		draw_board(%last_board, %board, $columns, $lines);
 
 		my %tmp_board;
-		%last_board := %board;
-		%board := %tmp_board;
+		%last_board = %board;
+		%board = %tmp_board;
 
 	}
 
@@ -168,5 +169,4 @@ sub main() {
 		#show_cursor();
 	}
 }
-main();
 
