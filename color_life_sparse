@@ -67,6 +67,21 @@ sub draw_board(%last_board, %board, $columns, $lines) {
 	$*OUT.write($frame.encode);
 }
 
+sub draw_board2(%last_board, %board, $columns, $lines) {
+	my $frame = "\e[H";
+	loop (my Int $y = 0; $y < $lines; ++$y) {
+		loop (my Int $x = 0; $x < $columns; ++$x) {
+			if %board{"{$x};{$y}"}:exists {
+				$frame ~= "\e[{$y + 1};{$x + 1}H{$ameba}";
+				next;
+			}
+			$frame ~= "\e[{$y + 1};{$x + 1}H ";
+
+		}
+	}
+	$*OUT.write($frame.encode);
+}
+
 sub life(%last_board, %board, $columns, $lines) {
 	for %last_board.keys -> $k {
 		my (Int $x, Int $y) = $k.split(';')>>.Int;

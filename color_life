@@ -121,7 +121,8 @@ sub leave_altscreen() {
 	printf "\e[?1049l";
 }
 
-our $rand_seed = 8675309;
+#our $rand_seed = 8675309;
+our $rand_seed = time;
 sub rand_next() {
 	my $x = $rand_seed;
 	my $mask = 0xFFFFFFFFFFFFFFFF;
@@ -140,7 +141,6 @@ sub init_board(@board) {
 			#local color=GREEN
 			my $r = rand_next();
 			@board[$x;$y] = (($r +> 32) % 8) == 0 ?? 1 !! 0;
-			#@board[$x;$y] = 1;
 		}
 	}
 	clear();
