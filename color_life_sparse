@@ -1,0 +1,172 @@
+#!/usr/bin/env raku
+
+our $ameba='█';
+#our $ameba='@';
+
+
+sub clear() {
+	print "\e[H\e[2J\e[3J";
+}
+
+sub hide_cursor() {
+	print "\e[?25l";
+}
+
+sub show_cursor() {
+	print "\e[?25h";
+}
+
+sub enter_altscreen() {
+	printf "\e[?1049h";
+}
+
+sub leave_altscreen() {
+	printf "\e[?1049l";
+}
+
+our $rand_seed = 8675309;
+#our $rand_seed = time;
+sub rand_next(Int $x, Int $y) {
+	my $z = $rand_seed * ($x * $y + 1);
+	my $mask = 0xFFFFFFFFFFFFFFFF;
+	$z = ($z +^ ($z +< 21) +& $mask);
+	$z = ($z +^ (($z +> 35) +& 0x1FFFFFFF) +& $mask);
+	$z = ($z +^ ($z +< 4) +& $mask);
+	#$rand_seed = $z +& 0x7FFFFFFFFFFFFFFF;
+	#$rand_seed = $z;
+	return $z;
+
+}
+
+sub init_board(%board, $columns, $lines) {
+	loop (my Int $y = 0; $y < $lines; ++$y) {
+		loop (my Int $x = 0; $x < $columns; ++$x) {
+			my $r = rand_next($x, $y);
+			if (($r +> 32) % 16) == 0 -> {
+				%board{"{$x};{$y}"} = 1;
+			}
+		}
+	}
+	clear();
+}
+
+sub draw_board(%last_board, %board, $columns, $lines) {
+	my $frame = "\e[H";
+	for %last_board.kv -> $k, $v {
+		my ($x, $y) = $k.split(";");
+		if $v == 1 and %board{"$k"}:!exists {
+			$frame ~= "\e[{$y + 1};{$x + 1}H ";
+		}
+	}
+	for %board.kv -> $k, $v {
+		my ($x, $y) = $k.split(";");
+		if %last_board{"$k"} == 0 {
+		$frame ~= "\e[{$y + 1};{$x + 1}H{$ameba}";
+		}
+	}
+	$*OUT.write($frame.encode);
+}
+
+sub life(%last_board, %board, $columns, $lines) {
+	for %last_board.keys -> $k {
+		my (Int $x, Int $y) = $k.split(';')>>.Int;
+		my $count = 0;
+
+		# check back & front
+		my $back = ($x - 1) % $columns;
+		my $forward = ($x + 1) % $columns;
+		if defined %last_board{"{$back};{$y}"} {
+			$count += %last_board{"{$back};{$y}"};
+		}
+		if defined %last_board{"{$forward};{$y}"} {
+			$count += %last_board{"{$forward};{$y}"};
+		}
+
+		my $up = ($y - 1) % $lines;
+		my $down = ($y + 1) % $lines;
+
+		# check above
+		if defined %last_board{"{$back};{$up}"} {
+			$count += %last_board{"{$back};{$up}"};
+		}
+		if defined %last_board{"{$x};{$up}"} {
+			$count += %last_board{"{$x};{$up}"};
+		}
+		if defined %last_board{"{$forward};{$up}"} {
+			$count += %last_board{"{$forward};{$up}"};
+		}
+
+		# check below
+		if defined %last_board{"{$back};{$down}"} {
+			$count += %last_board{"{$back};{$down}"};
+		}
+		if defined %last_board{"{$x};{$down}"} {
+			$count += %last_board{"{$x};{$down}"};
+		}
+		if defined %last_board{"{$forward};{$down}"} {
+			$count += %last_board{"{$forward};{$down}"};
+		}
+
+		my $is_alive = %last_board{"{$x};{$y}"} == 1 ?? 1 !! 0;
+
+		if not $is_alive and $count == 3 -> {
+			%board{"{$x};{$y}"} = 1;
+		}
+		if $is_alive && $count == 2 || $count == 3 -> {
+			%board{"{$x};{$y}"} = 1;
+		}
+	}
+}
+
+sub potential_life(%last_board, $columns, $lines) {
+	my @keys = %last_board.keys;
+	for @keys -> $k {
+		my (Int $x, Int $y) = $k.split(';')>>.Int;
+
+		# check back & front
+		my $back = ($x - 1) % $columns;
+		my $forward = ($x + 1) % $columns;
+		%last_board{"{$back};{$y}"} //= 0;
+		%last_board{"{$forward};{$y}"} //= 0;
+
+		my $up = ($y - 1) % $lines;
+		my $down = ($y + 1) % $lines;
+
+		## check above
+		%last_board{"{$back};{$up}"} //= 0;
+		%last_board{"{$x};{$up}"} //= 0;
+		%last_board{"{$forward};{$up}"} //= 0;
+
+		### check below
+		%last_board{"{$back};{$down}"} //= 0;
+		%last_board{"{$x};{$down}"} //= 0;
+		%last_board{"{$forward};{$down}"} //= 0;
+	}
+}
+
+sub main() {
+	my ($lines, $columns) = words(run('stty', 'size', :out).out.slurp);
+	my %last_board;
+	my %board;
+	init_board(%last_board, $columns, $lines );
+	#enter_altscreen();
+	#hide_cursor();
+
+	loop {
+		potential_life(%last_board, $columns, $lines);
+		life(%last_board, %board, $columns, $lines);
+		draw_board(%last_board, %board, $columns, $lines);
+
+		my %tmp_board;
+		%last_board = %board;
+		%board = %tmp_board;
+
+	}
+
+	LEAVE {
+		#leave_altscreen();
+		#show_cursor();
+	}
+}
+main();
+
