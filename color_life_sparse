@@ -174,8 +174,8 @@ sub MAIN($seed = 8675309) {
 		draw_board(%last_board, %board, $columns, $lines);
 
 		my %tmp_board;
-		%last_board = %board;
-		%board = %tmp_board;
+		%last_board := %board;
+		%board := %tmp_board;
 
 	}
 
