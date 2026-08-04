@@ -42,7 +42,7 @@ sub init_board(%board, $columns, $lines) {
 	loop (my Int $y = 0; $y < $lines; ++$y) {
 		loop (my Int $x = 0; $x < $columns; ++$x) {
 			my $r = rand_next($x, $y);
-			if (($r +> 32) % 16) == 0 -> {
+			if (($r +> 32) %% 16) -> {
 				%board{"{$x};{$y}"} = 1;
 			}
 		}
