@@ -1,5 +1,7 @@
 #!/usr/bin/env raku
 
+use Terminal::ReadKey;
+
 our $ameba='█';
 #our $ameba='@';
 
@@ -42,7 +44,7 @@ sub init_board(%board, $columns, $lines) {
 	loop (my Int $y = 0; $y < $lines; ++$y) {
 		loop (my Int $x = 0; $x < $columns; ++$x) {
 			my $r = rand_next($x, $y);
-			if (($r +> 32) %% 16) -> {
+			if (($r +> 32) %% 8) -> {
 				%board{"{$x};{$y}"} = 1;
 			}
 		}
@@ -51,20 +53,22 @@ sub init_board(%board, $columns, $lines) {
 }
 
 sub draw_board(%last_board, %board, $columns, $lines) {
-	my $frame = "\e[H";
+	#my $frame = "\e[H";
 	for %last_board.kv -> $k, $v {
 		my ($x, $y) = $k.split(";");
 		if $v == 1 and %board{"$k"}:!exists {
-			$frame ~= "\e[{$y + 1};{$x + 1}H ";
+			#$frame ~= "\e[{$y + 1};{$x + 1}H ";
+			print "\e[{$y + 1};{$x + 1}H ";
 		}
 	}
 	for %board.kv -> $k, $v {
 		my ($x, $y) = $k.split(";");
 		if %last_board{"$k"} == 0 {
-		$frame ~= "\e[{$y + 1};{$x + 1}H{$ameba}";
+			#$frame ~= "\e[{$y + 1};{$x + 1}H{$ameba}";
+			print "\e[{$y + 1};{$x + 1}H{$ameba}";
 		}
 	}
-	$*OUT.write($frame.encode);
+	#$*OUT.write($frame.encode);
 }
 
 sub draw_board2(%last_board, %board, $columns, $lines) {
@@ -163,8 +167,10 @@ sub MAIN($seed = 8675309) {
 	my ($lines, $columns) = words(run('stty', 'size', :out).out.slurp);
 	my %last_board;
 	my %board;
+	my %board1;
+	my %board2;
 	$rand_seed = $seed;
-	init_board(%last_board, $columns, $lines );
+	init_board(%last_board, $columns, $lines);
 	#enter_altscreen();
 	#hide_cursor();
 
